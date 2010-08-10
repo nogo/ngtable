@@ -210,7 +210,7 @@
           },
           'sort-date':  function($cell, order) {
             var text = $.trim($cell.text());
-            var date = Date.parse(text.replace(/(\d{2})\.(\d{2})\.(\d{4})/, "$3-$2-$1"));
+            var date = Date.parse(text);
             if (isNaN(date)) {
               date = Date.parse(Date());
             }
