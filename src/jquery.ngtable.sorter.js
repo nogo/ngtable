@@ -7,6 +7,10 @@
  *
  * @source http://www.packtpub.com/article/jquery-table-manipulation-part1
  *
+ * @version
+ * 0.2 code optimization
+ * 0.1 rewrite tablesorter core
+ *
  * @param Object css, define used css classes for markup
  * @param Object plugins, override or define custom filter and sorter
  *
@@ -82,10 +86,6 @@
         'filter-fail': 'tablesorter-filter-fail',
         'hidden': 'tablesorter-hidden'
       },
-      actions: {
-        'before': function() {},
-        'after': function() {}
-      },
       plugins: {
         colorize: function ($table, config) {
           $("tbody tr", $table).removeClass([config.css['even'], config.css['odd']].join(' '));
@@ -99,8 +99,14 @@
             id = 'cell-' + idx;
             // generate input field and add event and append it to $cell
             $(['<input type="text" id="', id ,'" />'].join('')).keyup(function() {
-              var search = $(this).val(),
-              $elements = $('tbody tr td:nth-child('+(idx+1)+')', $table);
+              var $input = $(this),
+              search = $input.val(),
+              $elements = $input.data('elements');
+
+              if (!$elements) {
+                $elements = $('tbody tr td:nth-child('+(idx+1)+')', $table);
+                $input.data('elements', $elements);
+              }
 
               if (search == '') {
                 // if search empty remove all fail-filter classes from the td-element
@@ -125,33 +131,25 @@
             }).appendTo($cell);
           },
           'filter-select': function($cell, $table, config) {
-            var idx = $cell[0].cellIndex,
-            id = 'cell-' + idx;
-            var optionsAdded = [],
-            addOption = function(value, options) {
-              options = options || [];
-              value = $.trim(value);
-              if (value != '' && $.inArray(value, options) < 0) {
-                options[options.length] = value;
-              }
-              return options;
-            },
-            updateSelect = function(select, options) {
-              if (select && options) {
-                $options = select.children('[value!=all]');
-                $options.removeAttr('disabled');
-                var option;
-
-                for (var i=0; i<$options.length; i++) {
-                  option = $($options[i]);
-                  if ($.inArray(option.val(), options) < 0) {
-                    option.attr('disabled','disabled');
+            var $elements = $cell.data('elements'),
+                idx = $cell[0].cellIndex,
+                id = 'cell-' + idx,
+                optionsAdded = [],
+                addOption = function(value, options) {
+                  options = options || [];
+                  value = $.trim(value);
+                  if (value != '' && $.inArray(value, options) < 0) {
+                    options[options.length] = value;
                   }
-                }
-              }
-            };
+                  return options;
+                };
 
-            $('tbody tr td:nth-child('+(idx+1)+')', $table).each(function(obj, item){
+            if (!$elements) {
+              $elements = $('tbody tr td:nth-child('+(idx+1)+')', $table);
+              $cell.data('elements', $elements);
+            }
+
+            $elements.each(function(obj, item){
               optionsAdded = addOption($(item).text(), optionsAdded);
             });
 
@@ -162,16 +160,13 @@
                 options[options.length] = ['<option value="', optionsAdded[i], '">', optionsAdded[i], '</option>'].join('');
               }
 
-              var select = $(['<select id="', id ,'">', options.join("\n"), '</select>'].join('')).change(function() {
-                var search = $('#' + id).val(),
-                $elements = $('tbody tr td:nth-child('+(idx+1)+')', $table);
+              $(['<select id="', id ,'">', options.join("\n"), '</select>'].join('')).change(function() {
+                var search = $('#' + id).val();
 
                 if (search == 'all') {
                   // if search empty remove all fail-filter classes from the td-element
                   // selector make show that only this column will be checked
-                  $elements.each(function() {
-                    $(this).removeClass(config.css['filter-fail']);
-                  });
+                  $elements.removeClass(config.css['filter-fail']);
                 } else {
                   // if search not match with td data then set fail-filter class
                   // selector make show that only this column will be checked
@@ -188,24 +183,44 @@
 
                 $table.trigger('filter');
               }).bind('update-filter', function() {
-                var options = [],
-                    select = $(this),
-                    val = select.val();
-                $('tbody tr:visible td:nth-child('+(idx+1)+')', $table).each(function(obj, item){
-                  options = addOption($(item).text(), options);
+                var $select = $(this),
+                    options = [],
+                    $options = $select.children('[value!=all]').removeAttr('disabled');
+
+                $elements.each(function(obj, item){
+                  var $item = $(item);
+                  if (!$item.hasClass(config.css['filter-fail'])) {
+                    options = addOption($item.text(), options);
+                  }
                 });
 
-                updateSelect(select, options, val);
+                $options.each(function() {
+                  var $option = $(this);
+                  if ($.inArray($option.val(), options) < 0) {
+                    $option.attr('disabled','disabled');
+                  }
+                });
               }).appendTo($cell);
             }
           }
         },
         sorter: {
           'sort-alpha': function($cell, order) {
-            return $cell.find('.sort-key').text().toUpperCase() + ' ' + $cell.text().toUpperCase();
+            var text = '',
+            sortkeys = $('.sort-key', $cell);
+
+            if (sortkeys.length) {
+              sortkeys.each(function(){
+                text += ' ' + $.trim(this).toUpperCase()
+              });
+            } else {
+              text = $.trim($cell.text()).toUpperCase();
+            }
+
+            return text;
           },
           'sort-numeric': function($cell, order) {
-            var key = parseFloat($cell.text());
+            var text = $.trim($cell.text()), key = parseFloat(text);
             return isNaN(key) ? 0 : key;
           },
           'sort-date':  function($cell, order) {
@@ -220,35 +235,31 @@
       }
     }, settings);
 
+    /*
+     * sort function
+     */
     var sort = function($th, $table, config) {
-      var data = $th.data('tablesorter'),
+      var sorter = $th.data('ngtable.sorter'),
           thIdx = $th[0].cellIndex;
 
-      if (config.plugins.sorter && config.plugins.sorter[data.sorter]) {
-        var rows = $table.find('tbody > tr').get(),
-            order = ($th.is('.' + config.css.asc))  ? -1 : 1,
-            sortKeyFunc = config.plugins.sorter[data.sorter];
+      if (config.plugins.sorter && config.plugins.sorter[sorter]) {
+        var rows = $('tbody tr', $table).detach().get(),
+        order = ($th.is('.' + config.css.asc))  ? -1 : 1,
+        sortKeyFunc = config.plugins.sorter[sorter];
 
         $table.trigger('before-sort');
 
-        $.each(rows, function(index, row) {
-          row.sortKey = sortKeyFunc($(row).children('td').eq(thIdx), order);
-        });
+        for (var i=0; i<rows.length; i++) {
+          rows[i].sortKey = sortKeyFunc($('td', rows[i]).eq(thIdx), order);
+        }
 
-        // array sort for rows
-        rows.sort(function(a, b) {
+        rows.sort(function(a, b) {          
           if (a.sortKey < b.sortKey) return order;
           if (a.sortKey > b.sortKey) return -order;
           return 0;
         });
 
-        // append all rows to tbody of table
-        $.each(rows, function(index, row) {
-          $table.children('tbody').append(row);
-          row.sortKey = null;
-        });
-
-        $(rows).show();
+        $(rows).css('display', '');
 
         // remove sort order classes from all th
         $('thead th', $table).removeClass([config.css.asc, config.css.desc].join(' '));
@@ -256,31 +267,39 @@
         // add sort order class to clicked th
         $th.addClass(((order == -1) ? config.css.asc : config.css.desc));
 
+        // append all rows to tbody of table
+        $('tbody', $table).append(rows);
+
         $table.trigger('after-sort');
         $table.trigger('filter');
       }
     }
 
     $(this).each(function() {
-      var $table = $(this);
+      var $table = $(this),
+      $thead = $('thead th', $table);
 
       $table.trigger('before');
-      if (config.actions.before) {
-        config.actions.before();
-      }
 
       // bind filter event to table
       $table.bind('filter', function(e) {
+        var $table = $(this),
+        $tbody = $('tbody', $table);
+        
         $table.trigger('before-filter');
-        $('tbody tr:hidden', $table).show();
 
-        $('tbody tr', $table).filter(function() {
+        var $tr = $('tr', $tbody).detach();
+
+        $tr.filter(':hidden').css('display', '');
+        $tr.filter(function() {
           return $('td.' + config.css['filter-fail'], this).length;
-        }).hide();
+        }).css('display', 'none');
 
+        $tbody.append($tr);
+        
         $('thead select', $table).trigger('update-filter');
+        $tbody.trigger('change');
 
-        $('tbody', $table).trigger('change');
         $table.trigger('after-filter');
       });
 
@@ -292,45 +311,46 @@
         }
       });
 
-      $table.find('th').each(function(column) {
+      $thead.each(function(column) {
         var findSortKey = undefined,
-            $th = $(this);
+        $th = $(this),
+        thClass = $th.attr('class').split(' ');
 
-        if (config && config.plugins && config.plugins.sorter) {
-          for (var name in config.plugins.sorter) if (config.plugins.sorter.hasOwnProperty(name)) {
-            if ($th.is('.' + name)) {
-              $th.data('tablesorter', {
-                sorter: name
-              });
+        if (thClass && thClass.length > 0) {
+          if (config && config.plugins) {
+            for (var i=0; i<thClass.length; i++) {
+              // set sort function
+              if (!findSortKey && config.plugins.sorter && config.plugins.sorter[thClass[i]]) {
+                findSortKey = config.plugins.sorter[thClass[i]];
+                $th.data('ngtable.sorter', thClass[i]);
+                
+                var hashName = ['#', thClass[i], '-', 'cell-', column+1].join(''),
+                aClass = (config.css.history) ? [config.css.clickable, config.css.history, ].join(' ') : config.css.clickable;
 
-              findSortKey = config.plugins.sorter[name];
-              var hashName = ['#', name, '-', 'cell-', column+1].join(''),
-                  classes = (config.css.history) ? [config.css.clickable, config.css.history, ].join(' ') : config.css.clickable;
-
-              var element = $('span', $th);
-              if (element.length > 0) {
-                element.wrap(['<a class="', classes, '" href="', hashName, '" rel="nofollow"></a>'].join(''));
-              } else {
-                $th.wrapInner(['<a class="', classes, '" href="', hashName, '" rel="nofollow"></a>'].join(''));
+                var element = $('span', $th);
+                if (element.length > 0) {
+                  element.wrap(['<a class="', aClass, '" href="', hashName, '" rel="nofollow"></a>'].join(''));
+                } else {
+                  $th.wrapInner(['<a class="', aClass, '" href="', hashName, '" rel="nofollow"></a>'].join(''));
+                }
               }
-              break;
+
+              // generate filter
+              if (config.plugins.filter && config.plugins.filter[thClass[i]]) {
+                config.plugins.filter[thClass[i]]($th, $table, config);
+              }
             }
           }
         }
 
         if (findSortKey) {
-          // bind sort event
-          $th.bind('sort', function(e) {
-            sort($th, $table, config);
-          });
-
           // add click event to clickable elements
           $('.' + config.css.clickable, $th).click(function() {
             // get current order
             var order = ($th.is('.' + config.css.asc))  ? -1 : 1;
 
             // remove sort order classes from all th
-            $('thead th', $table).removeClass([config.css.asc, config.css.desc].join(' '));
+            $thead.removeClass([config.css.asc, config.css.desc].join(' '));
 
             // add sort order class to clicked th
             $th.addClass(((order == 1) ? config.css.asc : config.css.desc));
@@ -339,27 +359,24 @@
             return false;
           });
 
+          // bind sort event
+          $th.bind('sort', function(e) {
+            sort($th, $table, config);
+          });
+
           //do css preconfigured sorting
           if ($th.is(['.' + config.css.asc, '.' + config.css.desc].join(','))) {
             $th.trigger('sort');
           }
         }
-
-        if (config && config.plugins && config.plugins.filter) {
-          for (var name in config.plugins.filter) if (config.plugins.filter.hasOwnProperty(name)) {
-            if ($th.is('.' + name)) {
-              config.plugins.filter[name]($th, $table, config);
-            }
-          }
-        }
-
-        $table.trigger('filter');
       });
 
-      if (config.actions.after) {
-        config.actions.after();
-      }
-    });
+      // run after sort event
+      $table.trigger('after');
+
+      // trigger filter
+      $table.trigger('filter');
+    }); // end each $(this)
 
     return $(this);
   };

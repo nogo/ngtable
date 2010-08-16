@@ -3,14 +3,18 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-us">
 <head>
 	<title>jQuery plugin: ngtable - sorter - pager - search</title>
-	<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
+	<script type="text/javascript" src="js/jquery-lastest.min.js"></script>
 	<script type="text/javascript" src="../src/jquery.ngtable.sorter.js"></script>
 	<script type="text/javascript" src="../src/jquery.ngtable.pager.js"></script>
 	<script type="text/javascript" src="../src/jquery.ngtable.search.js"></script>
 	<script type="text/javascript">
 	(function($, window) {
-		$(document).ready(function() {
-			$('.ngtablesorter').ngtablesorter({
+    $(window).load(function(){
+      $('#ngtablesorter').ngtablesorter().ngtablepager();
+    });
+
+/*		$(window).load(function() {
+			$('#ngtablesorter').ngtablesorter({
   			      css: {
  				'asc': 'tablesorter-asc',
 				'desc': 'tablesorter-desc',
@@ -38,13 +42,13 @@
 					'prev': 'Prev'
 				}
 			});
-		});
+		});*/
 	})(jQuery, window);
 	</script>
 </head>
 <body>
 
-<table class="ngtablesorter" border="1" cellspacing="2" cellpadding="5" >
+<table id="ngtablesorter" border="1" cellspacing="2" cellpadding="5" >
 <thead>
 	<tr>
 		<th class="sort-numeric">ID</th>

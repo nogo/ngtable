@@ -51,19 +51,19 @@
 			$next = $('.' + opt.css.next, opt.container),
 			$activePage = $('.' + opt.css.current, opt.container);
 
-			$rows.hide();
+			$rows.css('display', 'none');
 			for (var i=offsetLeft; i<offsetRight; i++) {
-				$($rows[i]).show();
+				$($rows[i]).css('display', '');
 			}
 
 			// show buttons
-			$prev.hide();
-			$next.hide();
+			$prev.css('display', 'none');
+			$next.css('display', 'none');
 			if (opt.page > 1) {
-				$prev.show();
+				$prev.css('display', '');
 			}
 			if (opt.page < totalPages) {
-				$next.show();
+				$next.css('display', '');
 			}
 
 			// remove active page
@@ -142,23 +142,25 @@
 
 			$table.trigger('before-pager');
 
-			var $rows = $('tbody tr:visible', $table);
+			var $tbody = $('tbody', $table),
+      $rows = $('tr:visible', $tbody).detach();
 
 			build($table, $rows, config);
 			moveTo($table, $rows, config);
-			$('tbody', $table).show();
+      $tbody.prepend($rows).show();
 
 			$table.trigger('after-pager');
 
-
-			$('tbody', $table).bind('change', function(e) {
+			$tbody.bind('change', function(e) {
 				$table.trigger('before-pager');
 
 				config.page = 1;
-				var $rows = $('tbody tr:visible', $table);
+				var $rows = $('tr:visible', this).detach();
 
 				build($table, $rows, config);
 				moveTo($table, $rows, config);
+
+        $(this).prepend($rows);
 
 				$table.trigger('after-pager');
 			});
