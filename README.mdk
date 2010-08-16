@@ -1,8 +1,6 @@
-README
-======
+# README
 
-ngTable
--------
+## ngTable
 
 ngTable is a lightwight jQuery plugin, which allow to sort, filter and paginate 
 tables. I know there a lot of plugins out there that do the same job. But 
@@ -12,16 +10,18 @@ whole grid. There come my plugin into play.
 ngTable has been inspired by tablesorter (http://tablesorter.com/). It is 
 complete rewritten core and the possibility to extend it with plugins.
 
-Quickstart
-----------
+## Quickstart
 
 $('table').ngtablesorter();
 
-Requirements
-------------
+## Requirements
+
   - jQuery >= 1.4
 
-Licence
--------
+## Licence
 
 MIT (http://www.opensource.org/licenses/mit-license.php)
+
+## Version
+0.2 - 20100816 - code and performance optimization
+0.1 - 20100810 - rewrite tablesorter core
