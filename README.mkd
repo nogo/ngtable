@@ -15,12 +15,10 @@ complete rewritten core and the possibility to extend it with plugins.
 $('table').ngtablesorter();
 
 ## Requirements
-
-  - jQuery >= 1.4
+- jQuery >= 1.4
 
 ## Licence
-
-MIT (http://www.opensource.org/licenses/mit-license.php)
+- MIT (http://www.opensource.org/licenses/mit-license.php)
 
 ## Version
 0.2 - 20100816 - code and performance optimization
